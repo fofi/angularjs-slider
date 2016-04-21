@@ -162,10 +162,22 @@
                   rz-slider-disabled="disableSlider"></rzslider>
     </article>
 
+    <article>
+      <h2>Range Slider Multiple handlers</h2>
+      Value: {{ priceSlider9 | json }}
+      <rzslider rz-slider-model="priceSlider9.min"
+                rz-slider-middle="priceSlider9.middle"
+                rz-slider-high="priceSlider9.max"
+                rz-slider-floor="0"
+                rz-slider-ceil="10"
+        ></rzslider>
+    </article>
+
 </div>
 
 
 <script src="../bower_components/angular/angular.js"></script>
+<script src="../bower_components/lodash/lodash.js"></script>
 <script src="../dist/rzslider.js"></script>
 <script>
   var app = angular.module('rzSliderDemo', ['rzModule']);
@@ -188,7 +200,7 @@
       max: 8
     };
     $scope.priceSlider8 = 5;
-
+    $scope.priceSlider9 = {min : 1, middle : [3,4], max : 7};
       $scope.disableSlider = true;
 
     $scope.translate = function(value) {

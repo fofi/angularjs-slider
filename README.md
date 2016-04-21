@@ -101,6 +101,10 @@ $scope.priceSlider = {
 
 > Model for high value slider. Providing both _rz-slider-high_ and _rz-slider-model_ will render range slider.
 
+
+**rz-slider-middle**
+
+>Model for intermediate values.
 **rz-slider-floor**
 
 > Minimum value for a slider.
@@ -127,7 +131,7 @@ $scope.priceSlider = {
 
 **rz-slider-present-only**
 
-> When set to true slider is used in presentation mode. No handle dragging. 
+> When set to true slider is used in presentation mode. No handle dragging.
 
 **rz-slider-draggable-range**
 
@@ -203,11 +207,11 @@ To force slider to recalculate dimensions broadcast **reCalcViewDimensions** eve
 
 You can also force redraw with **rzSliderForceRender** event.
 
-At the end of each "slide" slider emits `slideEnded` event. 
+At the end of each "slide" slider emits `slideEnded` event.
 
 ```javascript
 $scope.$on("slideEnded", function() {
-     // user finished sliding a handle 
+     // user finished sliding a handle
 });
 ```
 

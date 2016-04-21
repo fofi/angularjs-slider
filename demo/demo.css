@@ -4,4 +4,6 @@ header { background: #0db9f0; color: #fff; margin: -40px; margin-bottom: 40px; t
 h1 { font-weight: 300; }
 .wrapper { background: #fff; padding: 40px; }
 article { margin-bottom: 40px; }
-
+rzslider .rz-middle-bar-1 .rz-bar.rz-selection{background: #29EA84;}
+rzslider .rz-middle-bar-0 .rz-bar.rz-selection{background: #990000;}
+rzslider .rz-middle-bar-2 .rz-bar.rz-selection{background: #EA2929;}

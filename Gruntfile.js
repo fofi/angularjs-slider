@@ -112,26 +112,43 @@ module.exports = function(grunt) {
             less: {
                 files: ['src/*.less'],
                 tasks: ['css']
+            },
+            server : {
+              files : ['demo/*', 'src/*'],
+              options : {
+                livereload : true
+              }
             }
         },
         serve: {
             options: {
                 port: 9000
             }
+        },
+      express : {
+        all : {
+          options : {
+            port : 9000,
+            hostname : '0.0.0.0',
+            bases : [__dirname],
+            livereload : true
+          }
         }
+      },
+      open : {
+        all : {
+          path : 'http://localhost:<%= express.all.options.port%>/demo'
+        }
+      }
 
     });
 
-    grunt.loadNpmTasks('grunt-contrib-uglify');
-    grunt.loadNpmTasks('grunt-recess');
-    grunt.loadNpmTasks('grunt-angular-templates');
-    grunt.loadNpmTasks('grunt-replace');
-    grunt.loadNpmTasks('grunt-ng-annotate');
-    grunt.loadNpmTasks('grunt-contrib-watch');
-    grunt.loadNpmTasks('grunt-serve');
+  require('matchdep').filterDev('grunt-*').forEach(grunt.loadNpmTasks);
 
     grunt.registerTask('default', ['css', 'js']);
+    grunt.registerTask('serve', ['css', 'js', 'server'])
 
     grunt.registerTask('css', ['recess']);
     grunt.registerTask('js', ['ngtemplates', 'replace', 'ngAnnotate', 'uglify']);
+    grunt.registerTask('server', ['express', 'open', 'watch'])
 };

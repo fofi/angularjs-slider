@@ -119,11 +119,21 @@ function throttle(func, wait, options) {
     this.range = attributes.rzSliderHigh !== undefined && attributes.rzSliderModel !== undefined;
 
     /**
+     * Slider type. Multiple sliders
+     *
+     * @type {boolean} Set to true for multiple range slider
+     */
+    this.multipleRange = attributes.rzSliderMiddle !== undefined && attributes.rzSliderHigh !== undefined && attributes.rzSliderModel !== undefined;
+
+    /**
      * Whether to allow draggable range
      *
      * @type {boolean} Set to true for draggable range slider
      */
     this.dragRange = this.range && attributes.rzSliderDraggableRange === 'true';
+    if (attributes.rzSliderDraggableRange === 'true' && this.multipleRange){
+      throw new Error('Not implemented')
+    }
 
     /**
      * Values recorded when first dragging the bar
@@ -182,6 +192,12 @@ function throttle(func, wait, options) {
     this.tracking = '';
 
     /**
+     * The index of the tracked handled in case it is a middle handle
+     *
+     * @type {number}
+     */
+    this.middleTrackingIndex = 0;
+    /**
      * Minimum value (floor) of the model
      *
      * @type {number}
@@ -219,7 +235,7 @@ function throttle(func, wait, options) {
     this.presentOnly = attributes.rzSliderPresentOnly === 'true';
 
     /**
-     * Display ticks on each possible value.
+     * Display ticks.
      *
      * @type {boolean|Number} if Number then the ticks step value
      */
@@ -236,7 +252,7 @@ function throttle(func, wait, options) {
      *  Legend to show
      * @type {string}
      */
-    this.rzSliderLegend = attributes.rzSliderLegend
+    this.rzSliderLegend = attributes.rzSliderLegend;
 
     /**
      * Disable the slider
@@ -293,6 +309,8 @@ function throttle(func, wait, options) {
     this.cmbLab = null;   // Combined label
     this.ticks = null;  // The ticks
     this.legend = null; //The legend
+    this.middleH = null; //middle handle group
+    this.middleBar = null //middle bar group
     // Initialize slider
     this.init();
   };
@@ -307,7 +325,7 @@ function throttle(func, wait, options) {
      */
     init: function()
     {
-      var thrLow, thrHigh, unRegFn,
+      var thrLow, thrHigh, thrMiddle, unRegFn,
         calcDimFn = angular.bind(this, this.calcViewDimensions),
         self = this;
 
@@ -350,9 +368,26 @@ function throttle(func, wait, options) {
         {
           self.updateCmbLabel();
         }
+        if(self.multipleRange)
+        {
+          self.updateMiddleSelectionBars();
+        }
 
       }, self.interval);
 
+      //TODO thrMiddle
+
+      thrMiddle = throttle(function()
+      {
+        self.setMinAndMax();
+        self.updateMiddleHandles(self.valuesToOffset(self.scope.rzSliderMiddle));
+        self.updateSelectionBar();
+        self.updateTicksScale();
+        self.updateLegend();
+        self.updateCmbLabel();
+        self.updateMiddleSelectionBars();
+
+      }, self.interval)
       thrHigh = throttle(function()
       {
         self.setMinAndMax();
@@ -361,6 +396,10 @@ function throttle(func, wait, options) {
         self.updateTicksScale();
         self.updateLegend();
         self.updateCmbLabel();
+        if(self.multipleRange)
+        {
+          self.updateMiddleSelectionBars();
+        }
       }, self.interval);
 
       this.scope.$on('rzSliderForceRender', function()
@@ -368,6 +407,7 @@ function throttle(func, wait, options) {
         self.resetLabelsValue();
         thrLow();
         if(self.range) { thrHigh(); }
+        if(self.multipleRange) {thrMiddle();}
         self.resetSlider();
       });
 
@@ -378,6 +418,13 @@ function throttle(func, wait, options) {
         if(newValue === oldValue) { return; }
         thrLow();
       });
+      this.deRegFuncs.push(unRegFn);
+
+      unRegFn = this.scope.$watch('rzSliderMiddle', function(newValue, oldValue)
+      {
+        if(_.isEqual(newValue, oldValue)) {return ;}
+        thrMiddle();
+      }, true);
       this.deRegFuncs.push(unRegFn);
 
       unRegFn = this.scope.$watch('rzSliderHigh', function(newValue, oldValue)
@@ -442,6 +489,7 @@ function throttle(func, wait, options) {
     resetSlider: function()
     {
       this.setMinAndMax();
+      //TODO do middle
       this.updateCeilLab();
       this.updateFloorLab();
       this.setDisabledState();
@@ -497,7 +545,11 @@ function throttle(func, wait, options) {
       if(this.range)
         this.updateCmbLabel();
 
+      if(this.multipleRange)
+        this.updateMiddleHandles(this.valuesToOffset(this.scope.rzSliderMiddle))
       this.updateTicksScale();
+      if(this.multipleRange)
+        this.updateMiddleSelectionBars();
       this.updateLegend();
     },
 
@@ -561,6 +613,8 @@ function throttle(func, wait, options) {
       this.valueRange = this.maxValue - this.minValue;
     },
 
+    //TODO setMiddle
+
     /**
      * Set the slider children to variables for easy access
      *
@@ -588,9 +642,13 @@ function throttle(func, wait, options) {
           case 8: this.cmbLab = jElem; break;
           case 9: this.ticks = jElem; break;
           case 10 : this.legend = jElem; break;
+          case 11 : this.middleH = jElem; break;
+          case 12 : this.middleBar = jElem; break;
         }
 
       }, this);
+      this.middleHs = []; //middleHs as angular elements
+      this.middleBars = [];//middleBars as angular elements
 
       // Initialize offset cache properties
       this.selBar.rzsl = 0;
@@ -601,6 +659,7 @@ function throttle(func, wait, options) {
       this.minLab.rzsl = 0;
       this.maxLab.rzsl = 0;
       this.cmbLab.rzsl = 0;
+      this.middleH.rzsl = [];
 
       // Hide limit labels
       if(this.hideLimitLabels)
@@ -620,6 +679,7 @@ function throttle(func, wait, options) {
         this.hideEl(this.minLab);
         this.hideEl(this.maxLab);
         this.hideEl(this.cmbLab);
+        //TODO middleLab
       }
 
       // Remove stuff not needed in single slider
@@ -634,12 +694,25 @@ function throttle(func, wait, options) {
         this.hideEl(this.maxH);
       }
 
+      //Show long bar in multiple range
+      if(this.range && this.multipleRange)
+      {
+        this.selBar.remove()
+      }
       // Show selection bar for single slider or not
       if(this.range === false && this.alwaysShowBar === false)
       {
         this.maxH.remove();
         this.selBar.remove();
       }
+
+      //Remove middle elements and bars for single slider
+      if(!this.multipleRange)
+      {
+        this.middleH.remove();
+        this.middleBar.remove();
+      }
+
 
       // If using draggable range, use appropriate cursor for this.selBar.
       if (this.dragRange)
@@ -795,7 +868,7 @@ function throttle(func, wait, options) {
      * Update slider handles and label positions
      *
      * @param {string} which
-     * @param {number} newOffset
+     * @param {number | Array<number>} newOffset (newOffsets for rzSliderMiddle)
      */
     updateHandles: function(which, newOffset)
     {
@@ -809,11 +882,16 @@ function throttle(func, wait, options) {
         {
           this.updateCmbLabel();
         }
+        if(this.multipleRange)
+        {
+          this.updateMiddleSelectionBars()
+        }
         return;
       }
 
       if(which === 'rzSliderHigh')
       {
+
         this.updateHighHandle(newOffset);
         this.updateSelectionBar();
         this.updateTicksScale();
@@ -822,7 +900,19 @@ function throttle(func, wait, options) {
         {
           this.updateCmbLabel();
         }
+        if(this.multipleRange)
+        {
+          this.updateMiddleSelectionBars()
+        }
         return;
+      }
+
+      if(which === 'rzSliderMiddle')
+      {
+        this.updateTicksScale();
+        this.updateCmbLabel();
+        this.updateMiddleSelectionBars()
+          return;
       }
 
       // Update both
@@ -831,6 +921,8 @@ function throttle(func, wait, options) {
       this.updateSelectionBar();
       this.updateTicksScale();
       this.updateCmbLabel();
+      if(this.multipleRange)
+        this.updateMiddleSelectionBars()
       this.updateLegend();
     },
 
@@ -848,6 +940,42 @@ function throttle(func, wait, options) {
 
       this.shFloorCeil();
     },
+
+    /**
+     * Update middle handlers position and labels
+     * @param {Array.<number>} newOffsets
+     * @returns {undefined}
+     */
+    updateMiddleHandles: function(newOffsets)
+    {
+      //TODO Check we treat the case when middle length changes
+      var handlers = this.middleHs;
+      for (var i = 0; i < newOffsets.length; i ++) {
+        //TODO WARNING this assumes that sortedHandlers[i] has index i. Make sure it is the case
+        var middle = handlers[i];
+        var isPrecomputed = !!middle;
+        //We set index to access the handler later
+        middle = isPrecomputed ? middle : angular.element(('<span class="rz-pointer rz-middle-' + i + '" index="'+ i + '"></span>'));
+        this.setLeft(middle, newOffsets[i])
+        if (!isPrecomputed)
+        {
+          this.middleH.append(middle)
+          middle.on('mousedown', angular.bind(this, this.onStart, middle, 'rzSliderMiddle'));
+          middle.on('touchstart', angular.bind(this, this.onStart, middle, 'rzSliderMiddle'));
+        }
+        middle.index = i;
+        this.middleHs[i] = middle;
+      };
+      //Remove deleted nodes from the model
+      for (var i = newOffsets.length; i < this.middleHs.length; i++) {
+        this.middleHs[i].off();
+        this.middleHs[i].remove();
+      }
+      if (newOffsets.length < this.middleHs.length)
+        this.middleHs = this.middleHs.slice(0, newOffsets.length)
+    },
+
+
 
     /**
      * Update high slider handle position and label
@@ -916,6 +1044,8 @@ function throttle(func, wait, options) {
           this.showEl(this.flrLab);
         }
       }
+
+      //TODO multirange
     },
 
     /**
@@ -927,6 +1057,49 @@ function throttle(func, wait, options) {
     {
       this.setWidth(this.selBar, Math.abs(this.maxH.rzsl - this.minH.rzsl) + this.handleHalfWidth);
       this.setLeft(this.selBar, this.range ? this.minH.rzsl + this.handleHalfWidth : 0);
+    },
+
+    /**
+     * Update middle slider selection bars
+     */
+    updateMiddleSelectionBars: function()
+    {
+      var self = this;
+      //TODO Check we treat the case when middle length changes
+      var selectionBars = this.middleBars;
+      //this.scope.rzSlider.length + 1 because there is one more handle than middle points
+        for (var i = 0; i < this.scope.rzSliderMiddle.length + 1; i++) {
+          //TODO WARNING this assumes that sortedSelectionBars[i] has index i. Make sure it is the case
+          var middleBar = selectionBars[i];
+          var isPrecomputed = !!middleBar;
+          middleBar = isPrecomputed ? middleBar : angular.element(('<span class="rz-bar-wrapper rz-middle-bar-' + i + '" "index"="' + i + '"><span class="rz-bar rz-selection"></span></span>'));
+          this.setWidth(middleBar, Math.abs(getHandleRzsl(i) - getHandleRzsl(i-1)) + this.handleHalfWidth);
+          this.setLeft(middleBar, this.multipleRange ? getHandleRzsl(i-1) : 0);
+          if (!isPrecomputed)
+          {
+            this.middleBar.append(middleBar)
+            middleBar.on('mousedown', angular.bind(this, this.onStart, null, null))
+            middleBar.on('mousedown', angular.bind(this, this.onMove, middleBar));
+            middleBar.on('touchstart', angular.bind(this, this.onStart, null, null))
+            middleBar.on('touchstart', angular.bind(this, this.onMove, middleBar));
+          }
+          this.middleBars[i] = middleBar;
+        }
+      //Remove deleted nodes from the model
+      for (var i = this.scope.rzSliderMiddle.length + 1; i < this.middleBars.length; i++) {
+        this.middleBars[i].off();
+        this.middleBars[i].remove();
+      }
+      if (this.scope.rzSliderMiddle.length + 1 < this.middleBars.length)
+        this.middleBars = this.middleBars.slice(0, this.scope.rzSliderMiddle.length + 1)
+
+      function getHandleRzsl(index) {
+        switch (index) {
+          case -1 : return self.minH.rzsl;
+          case self.scope.rzSliderMiddle.length : return self.maxH.rzsl;
+          default : return self.middleHs[index].rzsl
+        }
+      }
     },
 
     /**
@@ -942,7 +1115,7 @@ function throttle(func, wait, options) {
       {
         lowTr = this.getDisplayValue(this.scope.rzSliderModel);
         highTr = this.getDisplayValue(this.scope.rzSliderHigh);
-
+        //TODO middle
         this.translateFn(lowTr + ' - ' + highTr, this.cmbLab, false);
         this.setLeft(this.cmbLab, this.selBar.rzsl + this.selBar.rzsw / 2 - this.cmbLab.rzsw / 2);
         this.hideEl(this.minLab);
@@ -1059,6 +1232,24 @@ function throttle(func, wait, options) {
     },
 
     /**
+     * Translate values to pixel offset
+     * @param {Array.<number>} vals
+     * @returns {Array.<number>}
+     */
+    valuesToOffset: function(vals)
+    {
+      var self = this;
+      return _.map(vals, function(item) {
+        return self.valueToOffset(item)
+      })
+    },
+    /**
+     * Translate array to pixel offset
+     * $param {array} middles
+     * $returns {array}
+     */
+
+    /**
      * Translate offset to model value
      *
      * @param {number} offset
@@ -1101,7 +1292,19 @@ function throttle(func, wait, options) {
     {
       if (!this.range) { return this.minH; }
       var offset = this.getEventX(event) - this.sliderElem.rzsl - this.handleHalfWidth;
-      return Math.abs(offset - this.minH.rzsl) < Math.abs(offset - this.maxH.rzsl) ? this.minH : this.maxH;
+      if (!this.multipleRange)
+      {
+        return Math.abs(offset - this.minH.rzsl) < Math.abs(offset - this.maxH.rzsl) ? this.minH : this.maxH;
+      }
+      var closestMiddle = _.minBy(this.middleHs, function (item) {return Math.abs(offset - item.rzsl)})
+      var minHDistance = Math.abs(offset - this.minH.rzsl);
+      var maxHDistance =  Math.abs(offset - this.maxH.rzsl);
+      var middleHDistance = Math.abs(offset - closestMiddle.rzsl)
+      if (minHDistance < maxHDistance && minHDistance < middleHDistance)
+        return this.minH;
+      if (middleHDistance < minHDistance && middleHDistance < maxHDistance)
+        return closestMiddle;
+      return this.maxH;
     },
 
     /**
@@ -1126,7 +1329,6 @@ function throttle(func, wait, options) {
         barStart = this.onStart;
         barMove = this.onMove;
       }
-
       this.minH.on('mousedown', angular.bind(this, this.onStart, this.minH, 'rzSliderModel'));
       if(this.range) { this.maxH.on('mousedown', angular.bind(this, this.onStart, this.maxH, 'rzSliderHigh')); }
       this.fullBar.on('mousedown', angular.bind(this, this.onStart, null, null));
@@ -1136,6 +1338,9 @@ function throttle(func, wait, options) {
       this.ticks.on('mousedown', angular.bind(this, this.onStart, null, null));
       this.ticks.on('mousedown', angular.bind(this, this.onMove, this.ticks));
 
+      //middleHs and middleBars are allowed to appear and disappear on Model changes. Therefore we cannot set the listeners here
+
+
       this.minH.on('touchstart', angular.bind(this, this.onStart, this.minH, 'rzSliderModel'));
       if(this.range) { this.maxH.on('touchstart', angular.bind(this, this.onStart, this.maxH, 'rzSliderHigh')); }
       this.fullBar.on('touchstart', angular.bind(this, this.onStart, null, null));
@@ -1144,8 +1349,8 @@ function throttle(func, wait, options) {
       this.selBar.on('touchstart', angular.bind(this, barMove, this.selBar));
       this.ticks.on('touchstart', angular.bind(this, this.onStart, null, null));
       this.ticks.on('touchstart', angular.bind(this, this.onMove, this.ticks));
-    },
 
+    },
     /**
      * Unbind mouse and touch events to slider handles
      *
@@ -1158,6 +1363,12 @@ function throttle(func, wait, options) {
       this.fullBar.off();
       this.selBar.off();
       this.ticks.off();
+      angular.forEach(this.middleHs, function(elem, index) {
+        elem.off();
+      }, this);
+      angular.forEach(this.middleBars, function(elem, index) {
+        elem.off();
+      }, this);
     },
 
     /**
@@ -1185,15 +1396,20 @@ function throttle(func, wait, options) {
       if(pointer)
       {
         this.tracking = ref;
+        if (ref === 'rzSliderMiddle')
+          this.middleTrackingIndex = pointer.index;
       }
       else
       {
         pointer = this.getNearestHandle(event);
-        this.tracking = pointer === this.minH ? 'rzSliderModel' : 'rzSliderHigh';
+        switch (pointer) {
+          case this.minH: this.tracking = 'rzSliderModel'; break;
+          case this.maxH: this.tracking = 'rzSliderHigh'; break;
+          default : this.tracking = 'rzSliderMiddle'; this.middleTrackingIndex = pointer.index;
+        }
       }
 
       pointer.addClass('rz-active');
-
       ehMove = angular.bind(this, this.dragging.active ? this.onDragMove : this.onMove, pointer);
       ehEnd = angular.bind(this, this.onEnd, ehMove);
 
@@ -1335,7 +1551,8 @@ function throttle(func, wait, options) {
      */
     positionTrackingHandle: function(newValue, newOffset)
     {
-      if(this.range)
+      var self = this;
+      if(this.range && !this.multipleRange)
       {
         /* This is to check if we need to switch the min and max handles*/
         if (this.tracking === 'rzSliderModel' && newValue >= this.scope.rzSliderHigh)
@@ -1362,13 +1579,111 @@ function throttle(func, wait, options) {
         }
       }
 
-      if(this.scope[this.tracking] !== newValue)
+      if(this.range && this.multipleRange)
+      {
+        var extendedIndex; //Here we track Model, Middles and High together
+        switch (this.tracking) {
+          case 'rzSliderModel' : extendedIndex = -1; break;
+          case 'rzSliderHigh' : extendedIndex = this.scope.rzSliderMiddle.length; break;
+          case 'rzSliderMiddle' : extendedIndex = this.middleTrackingIndex
+        }
+        //List is not longer in order
+        if ((newValue < getValue(extendedIndex-1)) || (newValue > getValue(extendedIndex + 1)))
+        {
+          var newIndex = findIndex(newValue, extendedIndex);
+          //Shift the rest of the properties
+          shiftIndex(extendedIndex, newIndex);
+
+          //We update everything so we don't have to distinguish cases
+          this.updateHandles('rzSliderHigh', this.maxH.rzsl);
+          this.updateHandles('rzSliderModel', this.minH.rzsl);
+          //TODO do this right using newOffset
+          this.updateHandles('rzSliderMiddle', this.valuesToOffset(this.scope.rzSliderMiddle))
+          getHandler(extendedIndex).removeClass('rz-active');
+          getHandler(newIndex).addClass('rz-active');
+
+          this.tracking = getType(newIndex);
+          this.middleTrackingIndex = newIndex;
+          this.scope.$apply();
+          this.callOnChange();
+
+        }
+
+      }
+
+      if(this.tracking !== 'rzSliderMiddle' && this.scope[this.tracking] !== newValue)
       {
         this.scope[this.tracking] = newValue;
         this.updateHandles(this.tracking, newOffset);
         this.scope.$apply();
         this.callOnChange();
       }
+
+      if(this.tracking === 'rzSliderMiddle' && this.scope[this.tracking][this.middleTrackingIndex] !== newValue)
+      {
+        this.middleHs[this.middleTrackingIndex].rzsl = newOffset;
+        this.scope.rzSliderMiddle[this.middleTrackingIndex] = newValue;
+        this.updateHandles(this.tracking, this.valuesToOffset(this.scope.rzSliderMiddle));
+        this.scope.$apply();
+        this.callOnChange();
+      }
+
+
+      function getHandler(index) {
+        switch (index) {
+          case -1 : return self.minH;
+          case self.scope.rzSliderMiddle.length : return self.maxH;
+          default :return self.middleHs[index];
+        }
+      };
+      function getType(index) {
+        switch (index) {
+          case -1 : return'rzSliderModel';
+          case self.scope.rzSliderMiddle.length : return 'rzSliderHigh';
+          default :return 'rzSliderMiddle';
+        }
+      };
+      function getValue(index) {
+        switch (index) {
+          case -2 : return Number.NEGATIVE_INFINITY; //we need this when comparing with rzSliderModel
+          case -1 : return self.scope.rzSliderModel;
+          case self.scope.rzSliderMiddle.length : return self.scope.rzSliderHigh;
+          case self.scope.rzSliderMiddle.length + 1 : return Number.POSITIVE_INFINITY; //We need when comparing with rzSliderHigh
+          default : return self.scope.rzSliderMiddle[index];
+        }
+      };
+      function setValue(index, value){
+        switch (index) {
+          case -1 : self.scope.rzSliderModel = value; break;
+          case self.scope.rzSliderMiddle.length : self.rzSliderHigh = value; break;
+          default : self.scope.rzSliderMiddle[index] = value;
+        }
+      };
+      //We find the correct place for the new Value
+      function findIndex(value, oldIndex) {
+        for (var i=-1; i < self.scope.rzSliderMiddle.length + 2; i++) {
+          if (getValue(i - 1) <= value && value <= getValue(i))
+          {
+            //Depending where we come we asign i-1 or i
+            if (oldIndex >= i){
+              return i;
+            } else {
+              return i - 1
+            }
+
+          }
+        }
+      };
+      //After moving a handler the values might be out of place (for example rzSliderHigh < rzSliderModel) Here we readjust the extended array
+      function shiftIndex(originIndex, destIndex) {
+        var originalValue = getValue(originIndex);
+        var sign = originIndex > destIndex ? -1 : 1; //In which direction we should translate everything
+        for (var i = 0; i < Math.abs(originIndex - destIndex); i++){
+          var position = originIndex + i*sign;
+          setValue(position, getValue(position + sign))
+        }
+        setValue(destIndex, originalValue)
+      };
     },
 
     /**
@@ -1384,7 +1699,9 @@ function throttle(func, wait, options) {
 
       this.minH.removeClass('rz-active');
       this.maxH.removeClass('rz-active');
-
+      angular.forEach(this.middleHs, function(elem, index) {
+        elem.removeClass('rz-active')
+      })
       $document.off(moveEventName, ehMove);
 
       this.scope.$emit('slideEnded');
@@ -1435,6 +1752,7 @@ function throttle(func, wait, options) {
       rzSliderStep: '@',
       rzSliderPrecision: '@',
       rzSliderModel: '=?',
+      rzSliderMiddle : '=?',
       rzSliderHigh: '=?',
       rzSliderDraggable: '@',
       rzSliderTranslate: '&',
@@ -1479,6 +1797,7 @@ function throttle(func, wait, options) {
  * @property {number} rzSliderModel
  * @property {number} rzSliderHigh
  * @property {number} rzSliderCeil
+ * @property {Array.<number>} rzSliderMiddle
  */
 
 /**
@@ -1508,7 +1827,7 @@ function throttle(func, wait, options) {
   'use strict';
 
   $templateCache.put('rzSliderTpl.html',
-    "<span class=rz-bar-wrapper><span class=rz-bar></span></span> <span class=rz-bar-wrapper><span class=\"rz-bar rz-selection\"></span></span> <span class=rz-pointer></span> <span class=rz-pointer></span> <span class=\"rz-bubble rz-limit\"></span> <span class=\"rz-bubble rz-limit\"></span> <span class=rz-bubble></span> <span class=rz-bubble></span> <span class=rz-bubble></span><ul class=rz-ticks></ul><span class=rz-legend></span>"
+    "<span class=rz-bar-wrapper><span class=rz-bar></span></span> <span class=rz-bar-wrapper><span class=\"rz-bar rz-selection\"></span></span> <span class=rz-pointer></span> <span class=rz-pointer></span> <span class=\"rz-bubble rz-limit\"></span> <span class=\"rz-bubble rz-limit\"></span> <span class=rz-bubble></span> <span class=rz-bubble></span> <span class=rz-bubble></span><ul class=rz-ticks></ul><span class=rz-legend></span><ul class=rz-middles></ul><ul class=rz-middleBars></ul>"
   );
 
 }]);

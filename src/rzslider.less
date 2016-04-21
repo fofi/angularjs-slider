@@ -147,4 +147,15 @@ rzslider {
     font-size : @legendFontSize;
     text-indent: 100%;
   }
+  .rz-middleBars {
+     .rz-bar-wrapper {
+       left: 0;
+       box-sizing: border-box;
+       margin-top: -@handleSize / 2;
+       padding-top: @handleSize / 2;
+       width: 100%;
+       height: @handleSize;
+       z-index: 1;
+     }
+  }
 }
