@@ -17,6 +17,7 @@
         <h1>AngularJS Touch Slider</h1>
     </header>
 
+
     <article>
         <h2>Min/max slider example</h2>
         Value:
@@ -114,6 +115,7 @@
                   rz-slider-always-show-bar="true"
                   rz-slider-show-ticks-value="true"></rzslider>
     </article>
+-->
 
     <article>
         <h2>Range Slider with ticks value example</h2>
@@ -122,8 +124,10 @@
                   rz-slider-high="priceSlider7.max"
                   rz-slider-floor="0"
                   rz-slider-ceil="10"
-                  rz-slider-show-ticks-value="true"></rzslider>
+                  rz-slider-show-ticks="true"
+                  ></rzslider>
     </article>
+
 
     <article>
         <h2>Draggable range example</h2>
@@ -162,6 +166,7 @@
                   rz-slider-disabled="disableSlider"></rzslider>
     </article>
 
+
     <article>
       <h2>Range Slider Multiple handlers</h2>
       Value: {{ priceSlider9 | json }}
@@ -173,6 +178,17 @@
         ></rzslider>
     </article>
 
+    <article>
+      <h2>Range Slider Multiple handlers and Active label</h2>
+      Value: {{ priceSlider9 | json }}
+      <rzslider rz-slider-model="priceSlider9.min"
+                rz-slider-middle="priceSlider9.middle"
+                rz-slider-high="priceSlider9.max"
+                rz-slider-floor="0"
+                rz-slider-ceil="10"
+                rz-slider-active-label="true"
+        ></rzslider>
+    </article>
 </div>
 
 

@@ -270,6 +270,11 @@ function throttle(func, wait, options) {
     this.interval = this.scope.rzSliderInterval !== null ? this.scope.rzSliderInterval : 350;
 
     /**
+     * Hide cmbLabel and show actual value on click. Useful for middle values
+     */
+    this.activeLabel = this.scope.rzSliderActiveLabel === 'true';
+
+    /**
      * The delta between min and max value
      *
      * @type {number}
@@ -644,6 +649,7 @@ function throttle(func, wait, options) {
           case 10 : this.legend = jElem; break;
           case 11 : this.middleH = jElem; break;
           case 12 : this.middleBar = jElem; break;
+          case 13 : this.activeLab = jElem; break;
         }
 
       }, this);
@@ -660,6 +666,7 @@ function throttle(func, wait, options) {
       this.maxLab.rzsl = 0;
       this.cmbLab.rzsl = 0;
       this.middleH.rzsl = [];
+      this.activeLab.rzsl = 0;
 
       // Hide limit labels
       if(this.hideLimitLabels)
@@ -679,7 +686,6 @@ function throttle(func, wait, options) {
         this.hideEl(this.minLab);
         this.hideEl(this.maxLab);
         this.hideEl(this.cmbLab);
-        //TODO middleLab
       }
 
       // Remove stuff not needed in single slider
@@ -713,7 +719,11 @@ function throttle(func, wait, options) {
         this.middleBar.remove();
       }
 
-
+      //Remove active label if not needed
+      if(!this.activeLabel)
+      {
+        this.activeLab.remove();
+      }
       // If using draggable range, use appropriate cursor for this.selBar.
       if (this.dragRange)
       {
@@ -870,7 +880,7 @@ function throttle(func, wait, options) {
      * @param {string} which
      * @param {number | Array<number>} newOffset (newOffsets for rzSliderMiddle)
      */
-    updateHandles: function(which, newOffset)
+    updateHandles: function(which, newOffset, newValue)
     {
       if(which === 'rzSliderModel')
       {
@@ -1120,16 +1130,48 @@ function throttle(func, wait, options) {
         this.setLeft(this.cmbLab, this.selBar.rzsl + this.selBar.rzsw / 2 - this.cmbLab.rzsw / 2);
         this.hideEl(this.minLab);
         this.hideEl(this.maxLab);
-        this.showEl(this.cmbLab);
+        if (!this.activeLabel || this.tracking === '')
+        {
+          this.showEl(this.cmbLab);
+        }  else
+        {
+          this.hideEl(this.cmbLab)
+        }
       }
       else
       {
-        this.showEl(this.maxLab);
-        this.showEl(this.minLab);
+        if (!this.activeLabel || this.tracking === '')
+        {
+          this.showEl(this.maxLab);
+          this.showEl(this.minLab);
+        }
+        else
+        {
+          this.hideEl(this.maxLab);
+          this.hideEl(this.minLab);
+        }
         this.hideEl(this.cmbLab);
       }
     },
 
+    /**Update active label during movement
+     * @params value
+     * @returns {undefined}
+     */
+    updateActiveLabel: function(value, newOffset)
+    {
+      if(this.tracking === '')
+      {
+        this.hideEl(this.activeLab);
+      }
+      else
+      {
+        this.translateFn(value, this.activeLab);
+        this.setLeft(this.activeLab, newOffset - this.activeLab.rzsw / 2 + this.handleHalfWidth);
+        this.showEl(this.activeLab);
+      }
+
+    },
     /**
      * Return the translated value if a translate function is provided else the original value
      * @param value
@@ -1415,6 +1457,20 @@ function throttle(func, wait, options) {
 
       $document.on(eventNames.moveEvent, ehMove);
       $document.one(eventNames.endEvent, ehEnd);
+      if(this.activeLabel)
+      {
+        var initialValue;
+        switch(this.tracking)
+        {
+          case 'rzSliderModel' : initialValue = this.scope.rzSliderModel; break;
+          case 'rzSliderHigh' : initialValue = this.scope.rzSliderHigh; break;
+          default : initialValue = this.scope.rzSliderMiddle[this.middleTrackingIndex]; break;
+        }
+        this.updateActiveLabel(initialValue,pointer.rzsl);
+        this.updateCmbLabel();
+      }
+
+
       this.callOnStart();
     },
 
@@ -1563,6 +1619,10 @@ function throttle(func, wait, options) {
           this.minH.removeClass('rz-active');
           this.maxH.addClass('rz-active');
            /* We need to apply here because we are not sure that we will enter the next block */
+          if(this.activeLabel)
+          {
+            this.updateActiveLabel(newValue, newOffset)
+          }
           this.scope.$apply();
           this.callOnChange();
         }
@@ -1601,6 +1661,10 @@ function throttle(func, wait, options) {
           this.updateHandles('rzSliderMiddle', this.valuesToOffset(this.scope.rzSliderMiddle))
           getHandler(extendedIndex).removeClass('rz-active');
           getHandler(newIndex).addClass('rz-active');
+          if(this.activeLabel)
+          {
+            this.updateActiveLabel(newValue, newOffset)
+          }
 
           this.tracking = getType(newIndex);
           this.middleTrackingIndex = newIndex;
@@ -1615,6 +1679,11 @@ function throttle(func, wait, options) {
       {
         this.scope[this.tracking] = newValue;
         this.updateHandles(this.tracking, newOffset);
+        if(this.activeLabel)
+        {
+          this.updateActiveLabel(newValue, newOffset)
+        }
+
         this.scope.$apply();
         this.callOnChange();
       }
@@ -1624,6 +1693,11 @@ function throttle(func, wait, options) {
         this.middleHs[this.middleTrackingIndex].rzsl = newOffset;
         this.scope.rzSliderMiddle[this.middleTrackingIndex] = newValue;
         this.updateHandles(this.tracking, this.valuesToOffset(this.scope.rzSliderMiddle));
+        if(this.activeLabel)
+        {
+          this.updateActiveLabel(newValue, newOffset)
+        }
+
         this.scope.$apply();
         this.callOnChange();
       }
@@ -1701,12 +1775,18 @@ function throttle(func, wait, options) {
       this.maxH.removeClass('rz-active');
       angular.forEach(this.middleHs, function(elem, index) {
         elem.removeClass('rz-active')
-      })
+      });
+
+
       $document.off(moveEventName, ehMove);
 
       this.scope.$emit('slideEnded');
       this.tracking = '';
-
+      if (this.activeLabel)
+      {
+        this.updateActiveLabel();
+        this.updateCmbLabel();
+      };
       this.dragging.active = false;
       this.callOnEnd();
     },
@@ -1767,7 +1847,8 @@ function throttle(func, wait, options) {
       rzSliderShowTicksValue: '=?',
       rzSliderDisabled: '=?',
       rzSliderInterval: '=?',
-      rzSliderLegend : '@?'
+      rzSliderLegend : '@?',
+      rzSliderActiveLabel : '@?',
     },
 
     /**
