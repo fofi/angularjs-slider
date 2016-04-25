@@ -186,9 +186,25 @@
                 rz-slider-high="priceSlider9.max"
                 rz-slider-floor="0"
                 rz-slider-ceil="10"
+                rz-slider-show-ticks="2"
+                rz-slider-step="1"
                 rz-slider-active-label="true"
         ></rzslider>
     </article>
+
+  <article>
+    <h2>Range MultisliderSlider with empty array</h2>
+    Value: {{ priceSlider9 | json }}
+    <rzslider rz-slider-model="priceSlider10.min"
+              rz-slider-middle="priceSlider10.middle"
+              rz-slider-high="priceSlider10.max"
+              rz-slider-floor="0"
+              rz-slider-ceil="10"
+              rz-slider-show-ticks="2"
+              rz-slider-step="1"
+              rz-slider-active-label="true"
+      ></rzslider>
+  </article>
 </div>
 
 
@@ -217,7 +233,9 @@
     };
     $scope.priceSlider8 = 5;
     $scope.priceSlider9 = {min : 1, middle : [3,4], max : 7};
-      $scope.disableSlider = true;
+    $scope.priceSlider10 = {min : 1, middle : [], max : 7};
+
+    $scope.disableSlider = true;
 
     $scope.translate = function(value) {
       return '$' + value;
@@ -229,7 +247,6 @@
     $scope.alphabetTranslate = function(value) {
       return alphabetArray[value].toUpperCase();
     };
-
     $scope.slider_data = {value: 1};
     $scope.otherData = {value: 10};
 

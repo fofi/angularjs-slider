@@ -1341,7 +1341,8 @@ function throttle(func, wait, options) {
       var closestMiddle = _.minBy(this.middleHs, function (item) {return Math.abs(offset - item.rzsl)})
       var minHDistance = Math.abs(offset - this.minH.rzsl);
       var maxHDistance =  Math.abs(offset - this.maxH.rzsl);
-      var middleHDistance = Math.abs(offset - closestMiddle.rzsl)
+      //If rz-middle === [] then there is no closest middle
+      var middleHDistance = closestMiddle === undefined ? Number.POSITIVE_INFINITY : Math.abs(offset - closestMiddle.rzsl)
       if (minHDistance < maxHDistance && minHDistance < middleHDistance)
         return this.minH;
       if (middleHDistance < minHDistance && middleHDistance < maxHDistance)
