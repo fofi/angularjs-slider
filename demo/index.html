@@ -36,6 +36,21 @@
     </article>
 
     <article>
+        <h2>Stepped slider example</h2>
+        Value:
+        <pre>{{ componentDetails | json }}</pre>
+        <p>Value linked on change: {{ componentDetails.value }}</p>
+
+        <rzslider 
+          rz-slider-floor="componentDetails.floor"
+          rz-slider-ceil="componentDetails.ceil"
+          rz-slider-model="componentDetails.value"
+          rz-slider-step="5"
+          rz-slider-step-array="componentDetails.stepArray"
+          rz-slider-show-ticks="true"> </rzslider>
+    </article>
+
+    <article>
         <h2>Min/max slider example</h2>
         Value:
         <pre>{{ priceSlider | json }}</pre>
@@ -220,6 +235,11 @@
       max: 400,
       ceil: 500,
       floor: 0
+    };
+
+    $scope.componentDetails = {     
+      value: 5,
+      stepArray : [0, 5, 7, 10, 15, 20],
     };
 
     $scope.priceSlider2 = 150;

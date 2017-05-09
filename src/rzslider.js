@@ -76,7 +76,34 @@ function throttle(func, wait, options) {
   };
 })
 
-.factory('RzSlider', function($timeout, $document, $window, throttle)
+.value('getClosestValue',
+  /**
+   * getlosestValue
+   *
+   * @param array
+   * @param value
+   * 
+   * @returns closest value
+   */
+ function getClosestValue (array, value) {
+     var lo = -1, hi = array.length
+     while (hi - lo > 1) {
+         var mid = Math.round((lo + hi)/2);
+         if (array[mid] <= value) {
+             lo = mid
+         } else {
+             hi = mid
+         }
+     }
+     if (value - array[lo] > array[hi] - value) {
+       return array[hi]
+     } else {
+       return array[lo]
+     }
+ })
+
+
+.factory('RzSlider', function($timeout, $document, $window, throttle, getClosestValue)
 {
   'use strict';
 
@@ -183,6 +210,13 @@ function throttle(func, wait, options) {
      * @type {number}
      */
     this.step = 0;
+
+    /**
+       * Step Array
+       *
+       * @type {[]}
+       */
+    this.stepArray = [];
 
     /**
      * The name of the handle we are currently tracking
@@ -334,6 +368,12 @@ function throttle(func, wait, options) {
         calcDimFn = angular.bind(this, this.calcViewDimensions),
         self = this;
 
+      if(this.scope.rzSliderStepArray) {
+        this.stepArray = this.scope.rzSliderStepArray;
+        this.scope.rzSliderFloor = this.stepArray[0];
+        this.scope.rzSliderCeil = this.stepArray[this.stepArray.length-1];
+      }
+
       this.initElemHandles();
       this.addAccessibility();
       this.setDisabledState();
@@ -342,6 +382,7 @@ function throttle(func, wait, options) {
 
       this.precision = this.scope.rzSliderPrecision === undefined ? 0 : +this.scope.rzSliderPrecision;
       this.step = this.scope.rzSliderStep === undefined ? 1 : +this.scope.rzSliderStep;
+
 
       $timeout(function()
       {
@@ -1194,6 +1235,10 @@ function throttle(func, wait, options) {
           steppedValue = remainder > (step / 2) ? value + step - remainder : value - remainder;
 
       steppedValue = steppedValue.toFixed(this.precision);
+      
+      if (this.stepArray && this.stepArray.length) {
+        steppedValue = getClosestValue(this.stepArray, value)
+      }
       return +steppedValue;
     },
 
@@ -1831,6 +1876,7 @@ function throttle(func, wait, options) {
       rzSliderFloor: '=?',
       rzSliderCeil: '=?',
       rzSliderStep: '@',
+      rzSliderStepArray: '=',
       rzSliderPrecision: '@',
       rzSliderModel: '=?',
       rzSliderMiddle : '=?',
