@@ -8,7 +8,6 @@
  *
  * Licensed under the MIT license
  */
-
 /*jslint unparam: true */
 /*global angular: false, console: false, define, module */
 (function (root, factory) {
@@ -76,7 +75,34 @@ function throttle(func, wait, options) {
   };
 })
 
-.factory('RzSlider', ['$timeout', '$document', '$window', 'throttle', function($timeout, $document, $window, throttle)
+.value('getClosestValue',
+  /**
+   * getlosestValue
+   *
+   * @param array
+   * @param value
+   * 
+   * @returns closest value
+   */
+ function getClosestValue (array, value) {
+     var lo = -1, hi = array.length
+     while (hi - lo > 1) {
+         var mid = Math.round((lo + hi)/2);
+         if (array[mid] <= value) {
+             lo = mid
+         } else {
+             hi = mid
+         }
+     }
+     if (value - array[lo] > array[hi] - value) {
+       return array[hi]
+     } else {
+       return array[lo]
+     }
+ })
+
+
+.factory('RzSlider', ['$timeout', '$document', '$window', 'throttle', 'getClosestValue', function($timeout, $document, $window, throttle, getClosestValue)
 {
   'use strict';
 
@@ -183,6 +209,13 @@ function throttle(func, wait, options) {
      * @type {number}
      */
     this.step = 0;
+
+    /**
+       * Step Array
+       *
+       * @type {[]}
+       */
+    this.stepArray = [];
 
     /**
      * The name of the handle we are currently tracking
@@ -333,6 +366,12 @@ function throttle(func, wait, options) {
       var thrLow, thrHigh, thrMiddle, unRegFn,
         calcDimFn = angular.bind(this, this.calcViewDimensions),
         self = this;
+
+      if(this.scope.rzSliderStepArray) {
+        this.stepArray = this.scope.rzSliderStepArray;
+        this.scope.rzSliderFloor = this.stepArray[0];
+        this.scope.rzSliderCeil = this.stepArray[this.stepArray.length-1];
+      }
 
       this.initElemHandles();
       this.addAccessibility();
@@ -1189,11 +1228,17 @@ function throttle(func, wait, options) {
      */
     roundStep: function(value)
     {
-      var step = this.step,
-          remainder = +((value - this.minValue) % step).toFixed(3),
-          steppedValue = remainder > (step / 2) ? value + step - remainder : value - remainder;
+      var steppedValue
 
-      steppedValue = steppedValue.toFixed(this.precision);
+      if (!this.stepArray || !this.stepArray.length) {
+        var step = this.step
+        var remainder = +((value - this.minValue) % step).toFixed(3)
+        steppedValue = remainder > (step / 2) ? value + step - remainder : value - remainder;
+
+        steppedValue = steppedValue.toFixed(this.precision);
+      } else {
+        steppedValue = getClosestValue(this.stepArray, value)
+      }
       return +steppedValue;
     },
 
@@ -1831,6 +1876,7 @@ function throttle(func, wait, options) {
       rzSliderFloor: '=?',
       rzSliderCeil: '=?',
       rzSliderStep: '@',
+      rzSliderStepArray: '=?',
       rzSliderPrecision: '@',
       rzSliderModel: '=?',
       rzSliderMiddle : '=?',
