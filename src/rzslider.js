@@ -1230,12 +1230,14 @@ function throttle(func, wait, options) {
      */
     roundStep: function(value)
     {
-      var step = this.step,
+      if (!this.stepArray || !this.stepArray.length) {
+        var step = this.step,
           remainder = +((value - this.minValue) % step).toFixed(3),
           steppedValue = remainder > (step / 2) ? value + step - remainder : value - remainder;
 
-      steppedValue = steppedValue.toFixed(this.precision);
-      
+        steppedValue = steppedValue.toFixed(this.precision);
+      }
+
       if (this.stepArray && this.stepArray.length) {
         steppedValue = getClosestValue(this.stepArray, value)
       }
@@ -1876,7 +1878,7 @@ function throttle(func, wait, options) {
       rzSliderFloor: '=?',
       rzSliderCeil: '=?',
       rzSliderStep: '@',
-      rzSliderStepArray: '=',
+      rzSliderStepArray: '=?',
       rzSliderPrecision: '@',
       rzSliderModel: '=?',
       rzSliderMiddle : '=?',
