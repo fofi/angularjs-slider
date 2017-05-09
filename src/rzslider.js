@@ -1230,15 +1230,15 @@ function throttle(func, wait, options) {
      */
     roundStep: function(value)
     {
+      var steppedValue
+
       if (!this.stepArray || !this.stepArray.length) {
-        var step = this.step,
-          remainder = +((value - this.minValue) % step).toFixed(3),
-          steppedValue = remainder > (step / 2) ? value + step - remainder : value - remainder;
+        var step = this.step
+        var remainder = +((value - this.minValue) % step).toFixed(3)
+        steppedValue = remainder > (step / 2) ? value + step - remainder : value - remainder;
 
         steppedValue = steppedValue.toFixed(this.precision);
-      }
-
-      if (this.stepArray && this.stepArray.length) {
+      } else {
         steppedValue = getClosestValue(this.stepArray, value)
       }
       return +steppedValue;
